@@ -1,0 +1,386 @@
+---
+title: "Cancer Details"
+author: "Renato Festa"
+date: "2023-03-10"
+output: word_document
+---
+
+## Overview
+
+The second phase of the Capstone Project in the HarvardX PH125.9x course is to choose a project in which I can use the knowledge acquired from all the previous topics to develop a machine learning script and a complete report on the dataset I choose to work with. The dataset I have chosen is called Cancer Details, which is available on Kaggle and was posted by ATHIRA G. This dataset contains information on cancer samples, including details such as radius, texture, perimeter, area, and others. In order to download the dataset automatically I needed to upload it in my github, from where the code can download it automatically.
+
+## Method
+
+First, I will analyze the dataset to better understand its contents, and then I will begin building the code to improve the accuracy of the results. One of the columns in the dataset determines whether the cancer sample is malignant or benign. My objective is to predict whether a cancer sample is malignant or benign using only the measurements provided by the other columns. Therefore, in this case, I aim to achieve the highest possible accuracy.
+
+## Analysis
+
+**Downloading the dataset and first view**
+
+First, lets take a look at the dataset to get familiar with it.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+url <- "https://raw.githubusercontent.com/RenatoFesta/cancerdetails/main/cancer_details.csv"
+cancerdetails <- read.csv(url)
+cancerdetails$X <- NULL
+cancerdetails$diagnosis <- as.factor(cancerdetails$diagnosis)
+str(cancerdetails)
+```
+
+The dataset has 32 columns and 569 rows. The first column is the ID of the sample, and the second one is a factor indicating whether the cancer is malignant or benign. The other 30 columns contain data collected from each sample, which we will use to determine whether a cancer sample is malignant or not.
+
+Next, I will split the cancerdetails dataset into a training set and a test set. I will use the training set to predict whether the data from the test set indicates a malignant cancer or not.
+
+```{r message=FALSE, warning=FALSE}
+library(caret)
+set.seed(321)
+test_index <- createDataPartition(cancerdetails$id, times = 1, p = 0.8, list = FALSE) 
+
+train_set <- cancerdetails[test_index, ] #create training set
+test_set <- cancerdetails[-test_index, ] #create test set
+```
+
+To compare the differences between the two categories of cancer for each column, I will use the training set to create plots. In these plots, I will be examining the differences between the 'M' and 'B' categories to find a better way to differentiate between them.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(cowplot)
+p1 <- train_set %>%
+  ggplot(aes(diagnosis, radius_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+p2 <- train_set %>%
+  ggplot(aes(diagnosis, texture_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+p3 <- train_set %>%
+  ggplot(aes(diagnosis, perimeter_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p4 <- train_set %>%
+  ggplot(aes(diagnosis, area_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+plot_grid(p1,p2,p3,p4)
+```
+
+```{r, echo=FALSE}
+p5 <- train_set %>%
+  ggplot(aes(diagnosis, smoothness_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p6 <- train_set %>%
+  ggplot(aes(diagnosis, compactness_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p7 <- train_set %>%
+  ggplot(aes(diagnosis, concavity_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p8 <- train_set %>%
+  ggplot(aes(diagnosis, concave.points_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+plot_grid(p5,p6,p7,p8)
+```
+
+```{r, echo=FALSE}
+p9 <- train_set %>%
+  ggplot(aes(diagnosis, symmetry_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p10 <- train_set %>%
+  ggplot(aes(diagnosis, fractal_dimension_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p11 <- train_set %>%
+  ggplot(aes(diagnosis, radius_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p12 <- train_set %>%
+  ggplot(aes(diagnosis, texture_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+plot_grid(p9,p10,p11,p12)
+```
+
+```{r, echo=FALSE}
+p13 <- train_set %>%
+  ggplot(aes(diagnosis, perimeter_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p14 <- train_set %>%
+  ggplot(aes(diagnosis, area_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p15 <- train_set %>%
+  ggplot(aes(diagnosis, smoothness_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p16 <- train_set %>%
+  ggplot(aes(diagnosis, compactness_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+plot_grid(p13,p14,p15,p16)
+```
+
+```{r, echo=FALSE}
+p17 <- train_set %>%
+  ggplot(aes(diagnosis, concavity_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p18 <- train_set %>%
+  ggplot(aes(diagnosis, concave.points_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) 
+
+p19 <- train_set %>%
+  ggplot(aes(diagnosis, symmetry_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+p20 <- train_set %>%
+  ggplot(aes(diagnosis, fractal_dimension_se, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+plot_grid(p17,p18,p19,p20)
+```
+
+```{r, echo=FALSE}
+p21 <- train_set %>%
+  ggplot(aes(diagnosis, radius_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+p22 <- train_set %>%
+  ggplot(aes(diagnosis, texture_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+p23 <- train_set %>%
+  ggplot(aes(diagnosis, perimeter_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+p24 <- train_set %>%
+  ggplot(aes(diagnosis, area_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+plot_grid(p21,p22,p23,p24)
+```
+
+```{r, echo=FALSE}
+p25 <- train_set %>%
+  ggplot(aes(diagnosis, smoothness_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+p26 <- train_set %>%
+  ggplot(aes(diagnosis, compactness_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+p27 <- train_set %>%
+  ggplot(aes(diagnosis, concavity_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+p28 <- train_set %>%
+  ggplot(aes(diagnosis, concave.points_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+plot_grid(p25,p26,p27,p28)
+```
+
+```{r, echo=FALSE}
+p29 <- train_set %>%
+  ggplot(aes(diagnosis, symmetry_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+p30 <- train_set %>%
+  ggplot(aes(diagnosis, fractal_dimension_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)
+
+plot_grid(p29,p30)
+```
+
+```{r, echo=FALSE}
+plot_grid(p1,p2,p3,p4)
+```
+
+Upon examining the plots, we can see that in most cases, the malignant cancer samples have higher values. I can leverage this difference to create a code that can differentiate between the two types of cancer. However, since some plots show a more significant difference than others, I will only use the plots where the difference is clearer. Then, I will determine a cut-off line that can more accurately separate the samples. Here are the chosen plots and how the cut-off line will be established:
+
+```{r, echo=FALSE}
+
+p1 <- train_set %>%
+  ggplot(aes(diagnosis, radius_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)+
+  geom_hline(yintercept = 15) 
+
+p3 <- train_set %>%
+  ggplot(aes(diagnosis, perimeter_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) +
+  geom_hline(yintercept = 95) 
+
+p4 <- train_set %>%
+  ggplot(aes(diagnosis, area_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) +
+  geom_hline(yintercept = 700) 
+
+p8 <- train_set %>%
+  ggplot(aes(diagnosis, concave.points_mean, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4) +
+  geom_hline(yintercept = 0.05) 
+  
+p21 <- train_set %>%
+  ggplot(aes(diagnosis, radius_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)+
+  geom_hline(yintercept = 17) 
+
+
+p23 <- train_set %>%
+  ggplot(aes(diagnosis, perimeter_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)+
+  geom_hline(yintercept = 115) 
+
+p24 <- train_set %>%
+  ggplot(aes(diagnosis, area_worst, color = diagnosis)) +
+  geom_point(position = position_jitter(width = 0.15), alpha = 0.4)+
+  geom_hline(yintercept = 880) 
+
+plot_grid(p1,p3)
+```
+```{r echo=FALSE}
+plot_grid(p4,p8)
+```
+```{r echo=FALSE}
+plot_grid(p21, p23)
+```
+```{r echo=FALSE}
+plot_grid(p24)
+```
+
+Using these cut-off lines, I will calculate the accuracy of my model if I decide to classify all points above it as 'M' and all below as 'B'
+
+```{r echo=FALSE}
+resultradiusmean <- as.factor(ifelse(train_set$radius_mean > 15, "M", "B"))
+a <- mean(resultradiusmean == train_set$diagnosis)
+print(c("The accuracy in the radius_mean plot is -",a))
+
+resultperimetermean <- as.factor(ifelse(train_set$perimeter_mean > 95, "M", "B"))
+b<- mean(resultperimetermean == train_set$diagnosis)
+print(c("The accuracy in the perimeter_mean plot is -",b))
+
+resultareamean <- as.factor(ifelse(train_set$area_mean > 700, "M", "B"))
+c<- mean(resultareamean == train_set$diagnosis)
+print(c("The accuracy in the area_mean plot is -",c))
+
+resultconcave.pointsmean <- as.factor(ifelse(train_set$concave.points_mean > 0.05, "M", "B"))
+d<- mean(resultconcave.pointsmean == train_set$diagnosis)
+print(c("The accuracy in the concave.points_mean plot is -",d))
+
+resultradius_worst <- as.factor(ifelse(train_set$radius_worst > 17, "M", "B"))
+e<- mean(resultradius_worst == train_set$diagnosis)
+print(c("The accuracy in the radius_worst plot is -",e))
+
+resultperimeter_worst <- as.factor(ifelse(train_set$perimeter_worst > 115, "M", "B"))
+f<- mean(resultperimeter_worst == train_set$diagnosis)
+print(c("The accuracy in the perimeter_worst plot is -",f))
+
+resultarea_worst <- as.factor(ifelse(train_set$area_worst > 880, "M", "B"))
+g<- mean(resultarea_worst == train_set$diagnosis)
+print(c("The accuracy in the area_wors plot is -",g))
+```
+
+The columns **'perimeter_worst'** and **'area_worst'** provide the best results. Now, I'm going to test other cuts on the same columns to see if we can achieve even higher accuracy.
+
+```{r echo=FALSE}
+#area_worst
+X <- seq(800, 950, 1)
+
+res.area <- function(X){
+  resultarea_worst <- as.factor(ifelse(train_set$area_worst > X, "M", "B"))
+  mean(resultarea_worst == train_set$diagnosis)
+}
+plot.area <- sapply(X, res.area)
+df <- data.frame(X, plot.area)
+df %>%
+  ggplot(aes(X, plot.area)) +
+  geom_line()
+cut_a <- X[which.max(sapply(X, res.area))] 
+result_a <- max(sapply(X, res.area))
+```
+```{r echo=FALSE}
+print(c("Cut in area_worst", cut_a))
+print(c("Accuracy in area_worst", result_a))
+```
+```{r echo=FALSE}
+# perimeter_worst
+Y <- seq(85, 135, 1)
+
+res.perimeter <- function(Y){
+  resultperimeter_worst <- as.factor(ifelse(train_set$perimeter_worst > Y, "M", "B"))
+  mean(resultperimeter_worst == train_set$diagnosis)
+}
+plot.perimeter <- sapply(Y, res.perimeter)
+df2 <- data.frame(Y, plot.perimeter)
+df2 %>%
+  ggplot(aes(Y, plot.perimeter)) +
+  geom_line()
+cut_b<- Y[which.max(sapply(Y, res.perimeter))]
+result_b <- max(sapply(Y, res.perimeter))
+```
+```{r echo=FALSE}
+print(c("Cut in perimeter_worst", cut_b))
+print(c("Accuracy in perimeter_worst", result_b))
+```
+As the **area_worst** had the best result, I'm going to use it to predict if the cancer samples in to test_set is 'M' or 'B'.
+```{r}
+resultarea_testset <- as.factor(ifelse(test_set$area_worst > 868, "M", "B"))
+confusionMatrix(resultarea_testset, test_set$diagnosis, positive = "M") 
+```
+**K-nearest neighbors**
+
+In the second phase of this report, I will use a more sophisticated approach to achieve better results. To do this, I have chosen to use the K-nearest neighbors (KNN) algorithm and cross-validation methods. 
+IBM classifies KNN as "a non-parametric, supervised learning classifier that uses proximity to make classifications or predictions about the grouping of individual data points".
+
+```{r}
+ctrl <- trainControl(method = "cv", #Here we choose the cross-validation method
+                     number = 10)  #Here we decide in how many folds we will split the sample
+
+knnFit <- train(diagnosis ~ .-id, 
+                method = "knn",
+                preProcess = c("center","scale"),
+                tuneLength = 20, #try 20 values for k
+                trControl = ctrl,
+                metric = "Accuracy",
+                data = train_set)
+knnFit$finalModel
+```
+```{r, echo=FALSE}
+plot(knnFit)
+```
+
+The 7-nearest neighbor model achieved the best result. Now let's use this result on the test data to calculate the accuracy of the predictions.
+```{r}
+predknn <- predict(knnFit, test_set, type = "prob")
+resultknn <- as.factor(ifelse(predknn[,2] > 0.5, "M", "B")) # If the chances of a cancer is "M" is higher than 50% we are going to chose "M".
+
+confusionMatrix(resultknn, test_set$diagnosis, positive = "M")
+```
+We have already exceeded the accuracy of the first model. However, we can still improve the results by using the **ROC curve**. 
+Currently, the code predicts that if the chance of being 'M' is higher than 50%, it should choose 'M'. But now we are going to determine whether 50% is the best threshold for making predictions.
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+library(pROC)
+aucknn <- roc(test_set$diagnosis, predknn[,2])
+plot.roc(aucknn, print.thres = T) # The print.thres function shows the best point to divide.
+```
+
+The plot shows that if the chance of the diagnosis being 'M' is higher than 0.214, it should select 'M'. Let's see if this actually improves the accuracy:
+```{r}
+resultknn <- as.factor(ifelse(predknn[,2] > 0.214, "M", "B"))
+confusionMatrix(resultknn, test_set$diagnosis, positive = "M")
+```
+
+## Results
+```{r, echo = FALSE}
+results_table <-tibble(Model_Type = c("Cut-off line", "K-NN"),
+                       Accuracy = c("0.8929",  "0.9732"))
+results_table
+```
+The cut-off line model has a good accuracy of 89.29%, but the K-NN model turns to be a better model, reaching 97.32%. 
+
+## Conclusion
+The first model uses only the cut-off line from one column to evaluate if a cancer sample is malignant or benign. The problem with this model is that sometimes, in all the other columns, the sample has values that are compatible with its classification, but in that one column, the values have a bias that can be enough to cause the wrong classification.
+
+One of the reasons why K-NN is considered the better model is that it uses the information from all the columns to predict in which category the sample belongs. Even if one column's value is out of the norm, the model can still fit the sample into the correct category. Furthermore, this model predicts the category based on other samples with similar values, which makes it more flexible and adjustable as we add more samples to the dataset. In the cut-off line model, we would have to recalculate the value to split the data and change the value manually.
+
